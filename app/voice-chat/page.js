@@ -17,6 +17,7 @@ export default function VoiceChat() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
+  const [useInverso, setUseInverso] = useState(false);
   const audioContextRef = useRef(null);
   const audioQueue = useRef([]);
   const isPlaying = useRef(false);
@@ -271,12 +272,22 @@ export default function VoiceChat() {
     setConversationHistory(prev => [...prev, { role: 'user', content: text }]);
     
     try {
+      // Check if Inverso API key is configured when using Inverso
+      if (useInverso) {
+        const configResponse = await fetch('/api/elevenlabs-config');
+        const config = await configResponse.json();
+        
+        if (!config.inversoApiKey) {
+          throw new Error('INVERSO_API_KEY is not defined in environment variables');
+        }
+      }
+      
       // Set up WebSocket first
       await setupElevenLabsWebSocket();
       
-      // Start streaming from OpenAI
-      const openAIUrl = `/api/chat/stream?message=${encodeURIComponent(text)}`;
-      const eventSource = new EventSource(openAIUrl);
+      // Start streaming from selected API (OpenAI or Inverso)
+      const streamUrl = `/api/chat/stream?message=${encodeURIComponent(text)}&useInverso=${useInverso}`;
+      const eventSource = new EventSource(streamUrl);
       
       let fullResponse = '';
       
@@ -326,6 +337,21 @@ export default function VoiceChat() {
           <Link href="/" className="text-blue-600 hover:underline">
             Back to Home
           </Link>
+        </div>
+        <div className="mt-4 flex items-center">
+          <label className="inline-flex items-center cursor-pointer">
+            <span className="mr-3 text-sm font-medium text-gray-700">OpenAI</span>
+            <div className="relative">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={useInverso}
+                onChange={() => setUseInverso(prev => !prev)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+            <span className="ml-3 text-sm font-medium text-gray-700">Inverso</span>
+          </label>
         </div>
       </header>
 
@@ -384,7 +410,7 @@ export default function VoiceChat() {
       </main>
 
       <footer className="py-4 text-center text-gray-500 text-sm">
-        <p>Powered by OpenAI (Whisper + ChatGPT) and ElevenLabs</p>
+        <p>Powered by {useInverso ? "Inverso" : "OpenAI"} (OpenAI Whisper for STT) and ElevenLabs</p>
       </footer>
     </div>
   );
