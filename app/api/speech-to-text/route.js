@@ -19,14 +19,30 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    // Crear un archivo temporal
+    // Determinar la extensión según el tipo MIME
+    let fileExtension = '.webm';
+    const fileType = audioFile.type;
+    
+    if (fileType) {
+      if (fileType.includes('wav')) fileExtension = '.wav';
+      else if (fileType.includes('mp3')) fileExtension = '.mp3';
+      else if (fileType.includes('ogg')) fileExtension = '.ogg';
+      else if (fileType.includes('flac')) fileExtension = '.flac';
+      else if (fileType.includes('m4a')) fileExtension = '.m4a';
+      else if (fileType.includes('mp4')) fileExtension = '.mp4';
+      console.log(`Detected file type: ${fileType}, using extension: ${fileExtension}`);
+    }
+    
+    // Crear un archivo temporal con la extensión correcta
     const tempDir = os.tmpdir();
-    const tempFilePath = path.join(tempDir, `audio-${Date.now()}.webm`);
+    const tempFilePath = path.join(tempDir, `audio-${Date.now()}${fileExtension}`);
     
     // Convertir el FormData file a un Buffer y escribirlo al archivo temporal
     const arrayBuffer = await audioFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     await writeFile(tempFilePath, buffer);
+    
+    console.log(`Created temporary file: ${tempFilePath}`);
     
     // Crear un ReadStream para el archivo temporal
     const fileStream = fs.createReadStream(tempFilePath);
@@ -41,6 +57,7 @@ export async function POST(request) {
     // Limpiar - eliminar el archivo temporal
     try {
       fs.unlinkSync(tempFilePath);
+      console.log(`Deleted temporary file: ${tempFilePath}`);
     } catch (cleanupError) {
       console.warn('Error cleaning up temp file:', cleanupError);
     }
@@ -49,6 +66,8 @@ export async function POST(request) {
     return NextResponse.json({ text: transcription.text });
   } catch (error) {
     console.error('Error transcribing audio:', error);
-    return NextResponse.json({ error: 'Failed to transcribe audio' }, { status: 500 });
+    return NextResponse.json({ 
+      error: `Failed to transcribe audio: ${error.message || error}` 
+    }, { status: 500 });
   }
 }

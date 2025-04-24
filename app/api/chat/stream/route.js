@@ -82,7 +82,8 @@ async function handleInversoRequest(message) {
       },
       body: JSON.stringify({
         thread_id: threadId,
-        message: message
+        message: message,
+        user_full_name: 'Edd',
       }),
     });
 

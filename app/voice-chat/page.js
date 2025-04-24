@@ -4,9 +4,15 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
-// Componente wrapper para el react-media-recorder
+// Componente wrapper para el react-media-recorder (opción manual)
 const MediaRecorder = dynamic(
   () => import("../../components/MediaRecorder"),
+  { ssr: false } // Esto evita que el componente se renderice en el servidor
+);
+
+// Componente para detección automática de voz
+const VoiceActivityDetector = dynamic(
+  () => import("../../components/VoiceActivityDetector"),
   { ssr: false } // Esto evita que el componente se renderice en el servidor
 );
 
@@ -18,6 +24,8 @@ export default function VoiceChat() {
   const [isConnected, setIsConnected] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [useInverso, setUseInverso] = useState(false);
+  const [useAutoVoiceDetection, setUseAutoVoiceDetection] = useState(true);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioContextRef = useRef(null);
   const audioQueue = useRef([]);
   const isPlaying = useRef(false);
@@ -126,12 +134,19 @@ export default function VoiceChat() {
   const processAudioQueue = async () => {
     if (isPlaying.current || audioQueue.current.length === 0) return;
     
+    setIsPlayingAudio(true);
     isPlaying.current = true;
     const audio = audioQueue.current.shift();
     
     await playAudio(audio);
     
     isPlaying.current = false;
+    
+    // Si la cola está vacía y no estamos procesando, podemos permitir la detección de voz nuevamente
+    if (audioQueue.current.length === 0 && !isProcessing) {
+      setIsPlayingAudio(false);
+    }
+    
     processAudioQueue();
   };
 
@@ -318,6 +333,11 @@ export default function VoiceChat() {
         
         setIsProcessing(false);
         setIsTranscribing(false);
+        
+        // Si no hay audio en la cola, podemos desactivar el estado de reproducción
+        if (audioQueue.current.length === 0 && !isPlaying.current) {
+          setIsPlayingAudio(false);
+        }
       };
       
     } catch (error) {
@@ -325,6 +345,7 @@ export default function VoiceChat() {
       setResponse("Sorry, there was an error processing your request.");
       setIsProcessing(false);
       setIsTranscribing(false);
+      setIsPlayingAudio(false);
     }
   };
 
@@ -338,7 +359,7 @@ export default function VoiceChat() {
             Back to Home
           </Link>
         </div>
-        <div className="mt-4 flex items-center">
+        <div className="mt-4 flex items-center justify-between">
           <label className="inline-flex items-center cursor-pointer">
             <span className="mr-3 text-sm font-medium text-gray-700">OpenAI</span>
             <div className="relative">
@@ -352,13 +373,37 @@ export default function VoiceChat() {
             </div>
             <span className="ml-3 text-sm font-medium text-gray-700">Inverso</span>
           </label>
+          
+          <label className="inline-flex items-center cursor-pointer">
+            <span className="mr-3 text-sm font-medium text-gray-700">Manual</span>
+            <div className="relative">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={useAutoVoiceDetection}
+                onChange={() => setUseAutoVoiceDetection(prev => !prev)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+            <span className="ml-3 text-sm font-medium text-gray-700">Auto</span>
+          </label>
         </div>
       </header>
 
       <main className="flex-grow">
         <div className="mb-6 flex flex-col items-center">
-          {/* Insertar el componente MediaRecorder */}
-          <MediaRecorder onTranscribe={transcribeAudio} isProcessing={isProcessing || isTranscribing} />
+          {/* Mostrar el componente adecuado según la selección del usuario */}
+          {useAutoVoiceDetection ? (
+            <VoiceActivityDetector 
+              onSpeechEnd={transcribeAudio} 
+              disabled={isProcessing || isTranscribing || isPlayingAudio} 
+            />
+          ) : (
+            <MediaRecorder 
+              onTranscribe={transcribeAudio} 
+              isProcessing={isProcessing || isTranscribing || isPlayingAudio} 
+            />
+          )}
           
           {isTranscribing && (
             <div className="w-full max-w-md mt-4 p-4 bg-blue-50 rounded-md mb-4">
@@ -378,6 +423,15 @@ export default function VoiceChat() {
               <p className="flex items-center">
                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></span>
                 {isConnected ? "Generating response..." : "Connecting..."}
+              </p>
+            </div>
+          )}
+          
+          {!isProcessing && isPlayingAudio && (
+            <div className="w-full max-w-md p-4 bg-green-50 rounded-md mb-4">
+              <p className="flex items-center">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></span>
+                Playing audio response...
               </p>
             </div>
           )}
@@ -410,7 +464,7 @@ export default function VoiceChat() {
       </main>
 
       <footer className="py-4 text-center text-gray-500 text-sm">
-        <p>Powered by {useInverso ? "Inverso" : "OpenAI"} (OpenAI Whisper for STT) and ElevenLabs</p>
+        <p>Powered by {useInverso ? "Inverso" : "OpenAI"} (OpenAI Whisper for STT), ElevenLabs, and {useAutoVoiceDetection ? "@ricky0123/vad-react for auto voice detection" : "react-media-recorder for manual recording"}</p>
       </footer>
     </div>
   );

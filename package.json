@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ricky0123/vad-react": "^0.0.28",
+    "audiobuffer-to-wav": "^1.0.0",
     "elevenlabs": "^1.57.0",
     "langchain": "^0.3.23",
     "next": "15.3.1",
