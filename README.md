@@ -1,6 +1,6 @@
-# ElevenLabs + OpenAI Demo
+# ElevenLabs + OpenAI/inverso Demo
 
-Esta aplicación demuestra la integración completa de las APIs de OpenAI (chat y reconocimiento de voz) con la tecnología de texto a voz de ElevenLabs. Permite a los usuarios mantener una conversación con un asistente de IA y escuchar las respuestas con una voz natural.
+Esta aplicación demuestra la integración completa de las APIs de OpenAI/Inverso (chat y reconocimiento de voz) con la tecnología de texto a voz de ElevenLabs. Permite a los usuarios mantener una conversación con un asistente de IA y escuchar las respuestas con una voz natural.
 
 ## Características
 
@@ -8,6 +8,8 @@ Esta aplicación demuestra la integración completa de las APIs de OpenAI (chat 
 - Conversión de respuestas de IA a voz usando ElevenLabs
 - Reconocimiento de voz usando OpenAI Whisper
 - Flujo conversacional completo de voz a texto y texto a voz
+- Detección automática de actividad de voz para interacción manos libres
+- Control inteligente de la conversación que evita interrupciones
 - Siete versiones disponibles:
   - **Versión Estándar**: Respuestas completas con generación de audio al final
   - **Versión Streaming**: Transmisión de texto en tiempo real con generación de audio al final
@@ -15,7 +17,7 @@ Esta aplicación demuestra la integración completa de las APIs de OpenAI (chat 
   - **Versión Tiempo Real**: Transmisión de texto en tiempo real con generación de audio por fragmentos
   - **Versión WebSocket**: Uso de la API WebSocket de ElevenLabs para streaming de audio en tiempo real
   - **Versión Combinada Stream**: Streaming de texto de OpenAI enviado directamente al WebSocket de ElevenLabs
-  - **Versión Voice Chat**: Interfaz conversacional completa con reconocimiento de voz y síntesis de voz
+  - **Versión Voice Chat**: Interfaz conversacional completa con reconocimiento de voz, síntesis de voz y nueva opción de detección automática de voz
 
 ## Comenzar
 
@@ -23,7 +25,10 @@ Esta aplicación demuestra la integración completa de las APIs de OpenAI (chat 
 2. Instala las dependencias:
    ```bash
    npm install
+   npm install @ricky0123/vad-react audiobuffer-to-wav --legacy-peer-deps
    ```
+   > Nota: Se requiere el flag `--legacy-peer-deps` debido a que el paquete de detección de voz está diseñado para React 18, pero el proyecto utiliza React 19.
+
 3. Crea un archivo `.env.local` en el directorio raíz con el siguiente contenido:
    ```
    OPENAI_API_KEY=tu_clave_api_openai_aquí
@@ -68,6 +73,7 @@ Esta aplicación demuestra la integración completa de las APIs de OpenAI (chat 
 - [WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) para streaming en tiempo real
 - [Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API) para reproducción de audio en tiempo real
 - [MediaRecorder API](https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder) para grabación de audio
+- [@ricky0123/vad-react](https://github.com/ricky0123/vad) para detección automática de actividad de voz
 
 ## Implementaciones de Streaming
 
@@ -83,8 +89,9 @@ El proyecto muestra diferentes enfoques para integrar streaming entre OpenAI y E
 
 ## Voice Chat - Ciclo Conversacional Completo
 
-La versión Voice Chat implementa un flujo conversacional completo:
+La versión Voice Chat implementa un flujo conversacional completo con dos modos de interacción por voz:
 
+### Modo de Grabación Manual
 1. **Grabación de voz**: Utiliza la API MediaRecorder para grabar la voz del usuario
 2. **Reconocimiento de voz**: Envía el audio a OpenAI Whisper para transcripción
 3. **Procesamiento de texto**: Envía el texto transcrito a la API de chat de OpenAI
@@ -92,7 +99,14 @@ La versión Voice Chat implementa un flujo conversacional completo:
 5. **Síntesis de voz**: Envía los fragmentos de respuesta al WebSocket de ElevenLabs
 6. **Reproducción de audio**: Reproduce los fragmentos de audio a medida que llegan
 
-Esta implementación ofrece la experiencia más natural y cercana a una conversación real con un asistente de IA.
+### Modo de Detección Automática de Voz (Novedad)
+1. **Detección automática de voz**: Utiliza la biblioteca `@ricky0123/vad-react` para detectar automáticamente cuando el usuario está hablando
+2. **Grabación automática**: Captura el audio solo cuando se detecta voz activa, sin necesidad de presionar botones
+3. **Procesamiento inteligente**: El sistema detiene automáticamente la grabación cuando detecta que el usuario ha dejado de hablar
+4. **Control de interrupciones**: La detección de voz se desactiva automáticamente mientras el asistente está generando o reproduciendo respuestas
+5. **Conversación natural**: Una vez que el asistente termina de hablar, la detección de voz se reactiva para la siguiente entrada del usuario
+
+Esta implementación ofrece la experiencia más natural y cercana a una conversación real con un asistente de IA, especialmente con el nuevo modo de detección automática que simula una llamada telefónica natural con el asistente.
 
 ## Consideraciones sobre WebSockets
 
